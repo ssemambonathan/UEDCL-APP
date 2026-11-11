@@ -1,0 +1,49 @@
+const { Pool } = require('pg');
+const admin = require('firebase-admin');
+
+const db = new Pool({ /* database config */ });
+
+/**
+ * Sends a push notification and cleans up invalid/expired FCM tokens.
+ */
+async function sendNotificationAndCleanupToken(userId, fcmToken, payload) {
+  try {
+    const response = await admin.messaging().send({ ...payload, token: fcmToken });
+    console.log(`Notification sent successfully: ${response}`);
+    return { success: true };
+  } catch (error) {
+    console.error(`FCM send error for user ${userId}:`, error.code);
+
+    // Specific error codes returned by FCM when a token is no longer valid
+    const invalidTokenErrorCodes = [
+      'messaging/registration-token-not-registered', // App uninstalled or token refreshed
+      'messaging/invalid-registration-token',        // Malformed token format
+      'messaging/invalid-argument'                  // Invalid recipient argument
+    ];
+
+    if (invalidTokenErrorCodes.includes(error.code)) {
+      console.warn(`Removing stale FCM token for user ${userId}...`);
+      await removeStaleTokenFromDatabase(userId, fcmToken);
+    }
+
+    return { success: false, error: error.code };
+  }
+}
+
+/**
+ * Removes or nullifies the invalid FCM token in PostgreSQL.
+ */
+async function removeStaleTokenFromDatabase(userId, fcmToken) {
+  try {
+    const query = `
+      UPDATE users 
+      SET fcm_token = NULL, 
+          fcm_token_updated_at = NOW() 
+      WHERE id = $1 AND fcm_token = $2
+    `;
+    await db.query(query, [userId, fcmToken]);
+    console.log(`Successfully cleared stale token for user ID: ${userId}`);
+  } catch (dbError) {
+    console.error(`Failed to update database for user ID: ${userId}`, dbError);
+  }
+}
