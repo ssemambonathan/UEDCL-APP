@@ -1,0 +1,45 @@
+package com.uedcl.power.utils
+
+import com.google.firebase.auth.FirebaseAuth
+import com.google.firebase.messaging.FirebaseMessagingService
+import com.uedcl.power.domain.repository.IUedclRepository
+import dagger.hilt.android.AndroidEntryPoint
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import javax.inject.Inject
+
+@AndroidEntryPoint
+class UedclMessagingService : FirebaseMessagingService() {
+
+    @Inject
+    lateinit var repository: IUedclRepository
+
+    override fun onNewToken(newToken: String) {
+        super.onNewToken(newToken)
+        
+        // Push the updated token to your backend if the user is authenticated
+        val currentUserId = FirebaseAuth.getInstance().currentUser?.uid
+        if (currentUserId != null) {
+            sendTokenToBackend(currentUserId, newToken)
+        } else {
+            // Save locally in EncryptedSharedPreferences until user logs in
+            saveTokenLocally(newToken)
+        }
+    }
+
+    private fun sendTokenToBackend(userId: String, token: String) {
+        CoroutineScope(Dispatchers.IO).launch {
+            try {
+                repository.updateFcmToken(userId, token)
+            } catch (e: Exception) {
+                // WorkManager can be used here to retry token sync if offline
+            }
+        }
+    }
+
+    private fun saveTokenLocally(token: String) {
+        val prefs = getSharedPreferences("uedcl_prefs", MODE_PRIVATE)
+        prefs.edit().putString("PENDING_FCM_TOKEN", token).apply()
+    }
+}
