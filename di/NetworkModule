@@ -1,0 +1,54 @@
+package com.uedcl.power.di
+
+import com.google.gson.GsonBuilder
+import com.uedcl.power.data.network.AuthInterceptor
+import com.uedcl.power.utils.SecureStorageManager
+import dagger.Module
+import dagger.Provides
+import dagger.hilt.InstallIn
+import dagger.hilt.android.qualifiers.ApplicationContext
+import dagger.hilt.components.SingletonComponent
+import android.content.Context
+import okhttp3.CertificatePinner
+import okhttp3.OkHttpClient
+import retrofit2.Retrofit
+import retrofit2.converter.gson.GsonConverterFactory
+import java.util.concurrent.TimeUnit
+import javax.inject.Singleton
+
+@Module
+@InstallIn(SingletonComponent::class)
+object NetworkModule {
+
+    private const val HOSTNAME = "api.uedcl.co.ug"
+
+    @Provides
+    @Singleton
+    fun provideSecureStorageManager(@ApplicationContext context: Context): SecureStorageManager {
+        return SecureStorageManager(context)
+    }
+
+    @Provides
+    @Singleton
+    fun provideOkHttpClient(
+        certificatePinner: CertificatePinner,
+        authInterceptor: AuthInterceptor
+    ): OkHttpClient {
+        return OkHttpClient.Builder()
+            .certificatePinner(certificatePinner)
+            .addInterceptor(authInterceptor) // Attach the JWT bearer token interceptor here
+            .connectTimeout(30, TimeUnit.SECONDS)
+            .readTimeout(30, TimeUnit.SECONDS)
+            .build()
+    }
+
+    @Provides
+    @Singleton
+    fun provideRetrofit(okHttpClient: OkHttpClient): Retrofit {
+        return Retrofit.Builder()
+            .baseUrl("https://$HOSTNAME/")
+            .client(okHttpClient)
+            .addConverterFactory(GsonConverterFactory.create(GsonBuilder().create()))
+            .build()
+    }
+}
