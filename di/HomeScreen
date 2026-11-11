@@ -1,0 +1,44 @@
+package com.uedcl.power.presentation.home
+
+import androidx.compose.ui.test.*
+import androidx.compose.ui.test.junit4.createComposeRule
+import androidx.test.ext.junit.runners.AndroidJUnit4
+import com.uedcl.power.IUedclRepository
+import com.uedcl.power.NavCoordinator
+import com.uedcl.power.Resource
+import com.uedcl.power.data.PowerStatusEntityModel
+import io.mockk.every
+import io.mockk.mockk
+import kotlinx.coroutines.flow.flowOf
+import org.junit.Rule
+import org.junit.Test
+import org.junit.runner.RunWith
+
+@RunWith(AndroidJUnit4::class)
+class HomeScreenIntegrationTest {
+
+    @get:Rule
+    val composeTestRule = createComposeRule()
+
+    @Test
+    fun homeScreen_displaysAvailableKwhWhenSuccessful() {
+        // Given
+        val mockRepo = mockk<IUedclRepository>(relaxed = true)
+        val statusModel = PowerStatusEntityModel(true, 75.5, "Domestic", 5.0)
+        
+        every { mockRepo.getPowerStatus() } returns flowOf(Resource.Success(statusModel))
+        every { mockRepo.getUserProfile() } returns flowOf(null)
+        every { mockRepo.getTransactions() } returns flowOf(emptyList())
+
+        val viewModel = HomeViewModel(mockRepo)
+        val navCoordinator = NavCoordinator()
+
+        composeTestRule.setContent {
+            HomeScreen(vm = viewModel, nav = navCoordinator)
+        }
+
+        // Then - Verify the balance rendered from the ViewModel state
+        composeTestRule.onNodeWithText("75.5 kWh").assertIsDisplayed()
+        composeTestRule.onNodeWithText("GRID ACTIVE").assertIsDisplayed()
+    }
+}
