@@ -1,0 +1,44 @@
+@Composable
+fun AppRoot(
+    activity: FragmentActivity, 
+    repo: IUedclRepository, 
+    startDestination: Destination = Destination.Home
+) {
+    val nav = remember { NavCoordinator().apply { current = startDestination } }
+    val homeVm = remember { HomeViewModel(repo) }
+    val yakaVm = remember { YakaViewModel(repo) }
+    val supportVm = remember { SupportViewModel(repo) }
+    val outagesFlow = remember { repo.getOutages().stateIn(CoroutineScope(Dispatchers.IO), SharingStarted.Eagerly, emptyList()) }
+
+    Scaffold(
+        bottomBar = {
+            NavigationBar(containerColor = Color.White) {
+                listOf(
+                    Triple("Home", Icons.Default.Home, Destination.Home),
+                    Triple("Buy Yaka", Icons.Default.FlashOn, Destination.BuyYaka),
+                    Triple("Usage", Icons.Default.BarChart, Destination.Usage),
+                    Triple("Outages", Icons.Default.Map, Destination.Map),
+                    Triple("Support", Icons.Default.SupportAgent, Destination.Support)
+                ).forEach { (label, icon, dest) ->
+                    NavigationBarItem(
+                        icon = { Icon(icon, contentDescription = label) },
+                        label = { Text(label, fontSize = 11.sp) },
+                        selected = nav.current == dest,
+                        onClick = { nav.current = dest },
+                        colors = NavigationBarItemDefaults.colors(selectedIconColor = UedclBlue, indicatorColor = UedclBlue.copy(alpha = 0.1f))
+                    )
+                }
+            }
+        }
+    ) { padding ->
+        Box(modifier = Modifier.fillMaxSize().padding(padding)) {
+            when (nav.current) {
+                Destination.Home -> HomeScreen(homeVm, nav)
+                Destination.BuyYaka -> BuyYakaScreen(activity, yakaVm) { nav.current = Destination.Home }
+                Destination.Usage -> UsageScreen()
+                Destination.Map -> OutageMapScreen(outagesFlow.collectAsState().value)
+                Destination.Support -> SupportScreen(supportVm)
+            }
+        }
+    }
+}
