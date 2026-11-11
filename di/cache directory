@@ -1,0 +1,63 @@
+package com.uedcl.power.di
+
+import android.content.Context
+import com.uedcl.power.data.network.AuthInterceptor
+import com.uedcl.power.data.network.OfflineCacheInterceptor
+import com.uedcl.power.data.network.OnlineCacheInterceptor
+import dagger.Module
+import dagger.Provides
+import dagger.hilt.InstallIn
+import dagger.hilt.android.qualifiers.ApplicationContext
+import dagger.hilt.components.SingletonComponent
+import okhttp3.Cache
+import okhttp3.CertificatePinner
+import okhttp3.OkHttpClient
+import retrofit2.Retrofit
+import retrofit2.converter.gson.GsonConverterFactory
+import java.io.File
+import java.util.concurrent.TimeUnit
+import javax.inject.Singleton
+
+@Module
+@InstallIn(SingletonComponent::class)
+object NetworkModule {
+
+    private const val HOSTNAME = "api.uedcl.co.ug"
+
+    @Provides
+    @Singleton
+    fun provideHttpCache(@ApplicationContext context: Context): Cache {
+        val cacheSize = 10L * 1024L * 1024L // 10 MB cache allocation
+        val cacheDir = File(context.cacheDir, "uedcl_http_cache")
+        return Cache(cacheDir, cacheSize)
+    }
+
+    @Provides
+    @Singleton
+    fun provideOkHttpClient(
+        @ApplicationContext context: Context,
+        cache: Cache,
+        certificatePinner: CertificatePinner,
+        authInterceptor: AuthInterceptor
+    ): OkHttpClient {
+        return OkHttpClient.Builder()
+            .cache(cache)
+            .certificatePinner(certificatePinner)
+            .addInterceptor(authInterceptor) // Attaches JWT Bearer token
+            .addInterceptor(OfflineCacheInterceptor(context)) // Handles offline cache reads (App interceptor)
+            .addNetworkInterceptor(OnlineCacheInterceptor())   // Handles online cache writes (Network interceptor)
+            .connectTimeout(30, TimeUnit.SECONDS)
+            .readTimeout(30, TimeUnit.SECONDS)
+            .build()
+    }
+
+    @Provides
+    @Singleton
+    fun provideRetrofit(okHttpClient: OkHttpClient): Retrofit {
+        return Retrofit.Builder()
+            .baseUrl("https://$HOSTNAME/")
+            .client(okHttpClient)
+            .addConverterFactory(GsonConverterFactory.create())
+            .build()
+    }
+}
