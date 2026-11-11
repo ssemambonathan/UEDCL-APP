@@ -1,0 +1,40 @@
+package com.uedcl.power.domain.usecase
+
+import com.uedcl.power.data.Resource
+import com.uedcl.power.domain.repository.IUedclRepository
+import com.google.common.truth.Truth.assertThat
+import io.mockk.coEvery
+import io.mockk.mockk
+import kotlinx.coroutines.test.runTest
+import org.junit.Before
+import org.junit.Test
+
+class BuyYakaUseCaseTest {
+
+    private lateinit var repository: IUedclRepository
+    private lateinit var buyYakaUseCase: BuyYakaUseCase
+
+    @Before
+    fun setUp() {
+        repository = mockk()
+        buyYakaUseCase = BuyYakaUseCase(repository)
+    }
+
+    @Test
+    fun `invoke returns success token when repository succeeds`() = runTest {
+        // Given
+        val meter = "0421-555"
+        val amount = 20000.0
+        val method = "MTN MoMo"
+        val expectedToken = "1234 5678 9012"
+        
+        coEvery { repository.buyYaka(meter, amount, method) } returns Resource.Success(expectedToken)
+
+        // When
+        val result = buyYakaUseCase(meter, amount, method)
+
+        // Then
+        assertThat(result).isInstanceOf(Resource.Success::class.java)
+        assertThat((result as Resource.Success).data).isEqualTo(expectedToken)
+    }
+}
