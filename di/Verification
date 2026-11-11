@@ -1,0 +1,23 @@
+override fun onMessageReceived(remoteMessage: RemoteMessage) {
+    super.onMessageReceived(remoteMessage)
+
+    val data = remoteMessage.data
+    val destination = data["nav_destination"] ?: return
+    val region = data["region"] ?: ""
+    val meterNumber = data["meter_number"] ?: ""
+    val timestamp = data["timestamp"] ?: ""
+    val receivedHash = data["secure_hash"] ?: ""
+
+    // Verify cryptographic signature before processing deep link
+    val isValid = PayloadSecurityVerifier.verifyPayloadSignature(
+        destination, region, meterNumber, timestamp, receivedHash
+    )
+
+    if (!isValid) {
+        // Drop unverified or tampered notification payloads
+        return
+    }
+
+    // Proceed with building and displaying the secure notification...
+    showVerifiedNotification(destination, region, meterNumber)
+}
