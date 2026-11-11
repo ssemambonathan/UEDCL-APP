@@ -1,20 +1,52 @@
-package com.uedcl.power.presentation
+ package com.uedcl.power
 
+import android.content.Intent
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.compose.runtime.*
 import androidx.fragment.app.FragmentActivity
+import com.uedcl.power.data.local.UedclDatabase
+import com.uedcl.power.data.repository.UedclRepositoryImpl
 import com.uedcl.power.presentation.theme.UedclTheme
 import dagger.hilt.android.AndroidEntryPoint
 
 @AndroidEntryPoint
 class MainActivity : FragmentActivity() {
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        
+        val initialDestination = parseDeepLinkDestination(intent)
+
+        val db = UedclDatabase.getDatabase(this)
+        val repo = UedclRepositoryImpl(applicationContext, db)
+
         setContent {
             UedclTheme {
-                // Surface / Navigation Scaffold goes here
+                Surface(modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
+                    // Pass the deep link target down to the root navigation coordinator
+                    AppRoot(activity = this, repo = repo, startDestination = initialDestination)
+                }
             }
+        }
+    }
+
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        // Handle deep link if app is already running in background/foreground
+        val destination = parseDeepLinkDestination(intent)
+        // Update navigation state dynamically here if needed
+    }
+
+    private fun parseDeepLinkDestination(intent: Intent?): Destination {
+        val destString = intent?.getStringExtra("NAV_DESTINATION") ?: return Destination.Home
+        return when (destString) {
+            "BUY_YAKA" -> Destination.BuyYaka
+            "OUTAGE_MAP" -> Destination.Map
+            "SUPPORT" -> Destination.Support
+            else -> Destination.Home
         }
     }
 }
