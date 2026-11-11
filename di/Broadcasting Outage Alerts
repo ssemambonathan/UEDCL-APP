@@ -1,0 +1,57 @@
+const admin = require('firebase-admin');
+const serviceAccount = require('./serviceAccountKey.json');
+
+if (!admin.apps.length) {
+  admin.initializeApp({
+    credential: admin.credential.cert(serviceAccount)
+  });
+}
+
+/**
+ * Broadcasts an emergency grid outage notification to a specific region.
+ * @param {string} regionName - e.g., "Kampala Ntinda"
+ * @param {string} outageReason - e.g., "Transformer repair work at Ntinda Substation"
+ * @param {string} estimatedRestoration - e.g., "18:00 EAT"
+ */
+async function sendRegionalOutageAlert(regionName, outageReason, estimatedRestoration) {
+  // Must match the sanitization logic on the Android client
+  const topicName = "outage_" + regionName.toLowerCase()
+    .replace(/ /g, "_")
+    .replace(/[^a-zA-Z0-9-_]/g, "");
+
+  const message = {
+    topic: topicName,
+    notification: {
+      title: `⚡ Grid Outage Alert: ${regionName}`,
+      body: `${outageReason}. Estimated restoration time: ${estimatedRestoration}.`
+    },
+    data: {
+      alert_type: 'REGIONAL_OUTAGE',
+      region: regionName,
+      restoration_time: estimatedRestoration
+    },
+    android: {
+      priority: 'high',
+      notification: {
+        channelId: 'uedcl_alerts_channel',
+        sound: 'default'
+      }
+    }
+  };
+
+  try {
+    const response = await admin.messaging().send(message);
+    console.log(`Outage alert sent successfully to topic [${topicName}]:`, response);
+    return { success: true, messageId: response };
+  } catch (error) {
+    console.error(`Failed to send broadcast to topic [${topicName}]:`, error);
+    return { success: false, error: error.message };
+  }
+}
+
+// Example usage:
+sendRegionalOutageAlert(
+  "Kampala Ntinda", 
+  "Unscheduled feeder tripping", 
+  "17:30 EAT"
+);
