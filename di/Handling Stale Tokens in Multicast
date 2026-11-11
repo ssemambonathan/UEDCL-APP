@@ -1,0 +1,33 @@
+async function sendBatchNotifications(tokensWithUserIds, notificationPayload) {
+  const tokens = tokensWithUserIds.map(t => t.fcmToken);
+
+  const multicastMessage = {
+    ...notificationPayload,
+    tokens: tokens
+  };
+
+  const response = await admin.messaging().sendEachForMulticast(multicastMessage);
+  
+  const tokensToRemove = [];
+
+  response.responses.forEach((res, idx) => {
+    if (!res.success) {
+      const errorCode = res.error.code;
+      if (
+        errorCode === 'messaging/registration-token-not-registered' ||
+        errorCode === 'messaging/invalid-registration-token'
+      ) {
+        const staleItem = tokensWithUserIds[idx];
+        tokensToRemove.push(staleItem.userId);
+      }
+    }
+  });
+
+  if (tokensToRemove.length > 0) {
+    console.log(`Cleaning up ${tokensToRemove.length} stale FCM tokens...`);
+    await db.query(
+      `UPDATE users SET fcm_token = NULL WHERE id = ANY($1::int[])`,
+      [tokensToRemove]
+    );
+  }
+}
