@@ -1,0 +1,45 @@
+package com.uedcl.power.presentation.buy_yaka
+
+import androidx.compose.ui.test.*
+import androidx.compose.ui.test.junit4.createComposeRule
+import androidx.fragment.app.FragmentActivity
+import androidx.test.ext.junit.runners.AndroidJUnit4
+import com.uedcl.power.IUedclRepository
+import com.uedcl.power.YakaViewModel
+import io.mockk.mockk
+import org.junit.Rule
+import org.junit.Test
+import org.junit.runner.RunWith
+
+@RunWith(AndroidJUnit4::class)
+class BuyYakaScreenUiTest {
+
+    @get:Rule
+    val composeTestRule = createComposeRule()
+
+    @Test
+    fun buyYakaScreen_displaysInputsAndAllowsTyping() {
+        // Given
+        val mockRepo = mockk<IUedclRepository>(relaxed = true)
+        val viewModel = YakaViewModel(mockRepo)
+        val mockActivity = mockk<FragmentActivity>(relaxed = true)
+
+        composeTestRule.setContent {
+            BuyYakaScreen(
+                activity = mockActivity,
+                vm = viewModel,
+                onDone = {}
+            )
+        }
+
+        // Then - Verify title and text fields are present
+        composeTestRule.onNodeWithText("Buy Yaka Token").assertIsDisplayed()
+        composeTestRule.onNodeWithText("Amount (UGX)").assertIsDisplayed()
+
+        // When - Type an amount
+        composeTestRule.onNodeWithText("Amount (UGX)").performTextInput("20000")
+
+        // Then - Verify input text matches
+        composeTestRule.onNodeWithText("Amount (UGX)").assertTextContains("20000")
+    }
+}
