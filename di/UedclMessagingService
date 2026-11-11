@@ -1,0 +1,46 @@
+package com.uedcl.power.security
+
+import javax.crypto.Mac
+import javax.crypto.spec.SecretKeySpec
+import java.security.MessageDigest
+
+object PayloadSecurityVerifier {
+
+    // Must match the secret key configured on your Node.js backend
+    private const val SECRET_KEY = "uedcl_secure_shared_secret_key_2026"
+
+    /**
+     * Verifies the incoming FCM deep link payload signature.
+     */
+    fun verifyPayloadSignature(
+        destination: String,
+        region: String,
+        meterNumber: String,
+        timestamp: String,
+        receivedHash: String
+    ): Boolean {
+        // Optional: Check if timestamp is within an acceptable window (e.g., 5 minutes) to prevent replay attacks
+        val tokenTime = timestamp.toLongOrNull() ?: return false
+        val currentTime = System.currentTimeMillis()
+        if (currentTime - tokenTime > 300_000) { // 5 minutes
+            return false 
+        }
+
+        val canonicalString = "$destination:$region:$meterNumber:$timestamp"
+        val computedHash = computeHmacSha256(canonicalString, SECRET_KEY)
+
+        // Use constant-time comparison to prevent timing attacks
+        return MessageDigest.isEqual(
+            computedHash.toByteArray(Charsets.UTF_8),
+            receivedHash.toByteArray(Charsets.UTF_8)
+        )
+    }
+
+    private fun computeHmacSha256(data: String, key: String): String {
+        val mac = Mac.getInstance("HmacSHA256")
+        val secretKeySpec = SecretKeySpec(key.toByteArray(Charsets.UTF_8), "HmacSHA256")
+        mac.init(secretKeySpec)
+        val hashBytes = mac.doFinal(data.toByteArray(Charsets.UTF_8))
+        return hashBytes.joinToString("") { "%02x".format(it) }
+    }
+}
