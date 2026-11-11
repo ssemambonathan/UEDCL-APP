@@ -1,0 +1,2 @@
+val secureStorage = SecureStorageManager(context)
+secureStorage.saveEncryptedToken("JWT_BEARER_TOKEN", "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...")
