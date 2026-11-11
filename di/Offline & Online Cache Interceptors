@@ -1,0 +1,38 @@
+package com.uedcl.power.data.network
+
+import android.content.Context
+import android.net.ConnectivityManager
+import android.net.NetworkCapabilities
+import okhttp3.Interceptor
+import okhttp3.Response
+
+class OfflineCacheInterceptor(private val context: Context) : Interceptor {
+    override fun intercept(chain: Interceptor.Chain): Response {
+        var request = chain.request()
+
+        // If offline, force OkHttp to read from cache up to 7 days old
+        if (!isNetworkAvailable(context)) {
+            request = request.newBuilder()
+                .header("Cache-Control", "public, only-if-cached, max-stale=604800") // 7 days in seconds
+                .build()
+        }
+        return chain.proceed(request)
+    }
+
+    private fun isNetworkAvailable(context: Context): Boolean {
+        val connectivityManager = context.getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
+        val network = connectivityManager.activeNetwork ?: return false
+        val capabilities = connectivityManager.getNetworkCapabilities(network) ?: return false
+        return capabilities.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)
+    }
+}
+
+class OnlineCacheInterceptor : Interceptor {
+    override fun intercept(chain: Interceptor.Chain): Response {
+        val response = chain.proceed(chain.request())
+        // Allow OkHttp to cache responses for 60 seconds when online
+        return response.newBuilder()
+            .header("Cache-Control", "public, max-age=60")
+            .build()
+    }
+}
