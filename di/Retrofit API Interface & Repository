@@ -1,0 +1,12 @@
+// Retrofit API Endpoint
+interface UedclApiService {
+    @POST("user/update-fcm-token")
+    suspend fun updateFcmToken(
+        @Body request: FcmTokenUpdateRequest
+    ): Response<Boolean>
+}
+
+data class FcmTokenUpdateRequest(
+    val userId: String,
+    val fcmToken: String
+)
