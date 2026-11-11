@@ -1,0 +1,32 @@
+package com.uedcl.power.utils
+
+import com.google.firebase.messaging.FirebaseMessaging
+import kotlinx.coroutines.tasks.await
+
+object FcmTopicManager {
+
+    /**
+     * Sanitizes topic strings (FCM topics must match: [a-zA-Z0-9-_.~%]+)
+     */
+    private fun sanitizeTopic(regionName: String): String {
+        return "outage_" + regionName.lowercase()
+            .replace(" ", "_")
+            .replace(Regex("[^a-zA-Z0-9-_]"), "")
+    }
+
+    fun subscribeToRegion(regionName: String, onResult: (Boolean) -> Unit) {
+        val topic = sanitizeTopic(regionName)
+        FirebaseMessaging.getInstance().subscribeToTopic(topic)
+            .addOnCompleteListener { task ->
+                onResult(task.isSuccessful)
+            }
+    }
+
+    fun unsubscribeFromRegion(regionName: String, onResult: (Boolean) -> Unit) {
+        val topic = sanitizeTopic(regionName)
+        FirebaseMessaging.getInstance().unsubscribeFromTopic(topic)
+            .addOnCompleteListener { task ->
+                onResult(task.isSuccessful)
+            }
+    }
+}
