@@ -1,0 +1,34 @@
+package com.uedcl.power.utils
+
+import android.content.Context
+import androidx.work.*
+import com.google.firebase.auth.FirebaseAuth
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
+
+class FcmTokenSyncWorker(
+    appContext: Context,
+    workerParams: WorkerParameters
+) : CoroutineWorker(appContext, workerParams) {
+
+    override suspend fun doWork(): Result = withContext(Dispatchers.IO) {
+        val fcmToken = inputData.getString("KEY_FCM_TOKEN") ?: return@withContext Result.failure()
+        val userId = FirebaseAuth.getInstance().currentUser?.uid ?: return@withContext Result.failure()
+
+        try {
+            // Replace with your actual Retrofit API call or Repository method
+            // val response = apiService.updateFcmToken(FcmTokenUpdateRequest(userId, fcmToken))
+            val isSuccess = true // Simulated successful API sync
+
+            if (isSuccess) {
+                Result.success()
+            } else {
+                // Server-side failure (e.g. 500 error), retry later
+                Result.retry()
+            }
+        } catch (e: Exception) {
+            // Network failure / offline, WorkManager will retry when connection restores
+            Result.retry()
+        }
+    }
+}
