@@ -1,0 +1,47 @@
+package com.uedcl.power.utils
+
+import android.app.PendingIntent
+import android.content.Intent
+import com.google.firebase.messaging.FirebaseMessagingService
+import com.google.firebase.messaging.RemoteMessage
+import com.uedcl.power.MainActivity
+
+class UedclMessagingService : FirebaseMessagingService() {
+
+    override fun onMessageReceived(remoteMessage: RemoteMessage) {
+        super.onMessageReceived(remoteMessage)
+
+        // Extract deep link parameters from the data payload
+        val data = remoteMessage.data
+        val destination = data["nav_destination"] ?: "HOME"
+        val region = data["region"] ?: ""
+        val meterNumber = data["meter_number"] ?: ""
+
+        val title = remoteMessage.notification?.title ?: "UEDCL Alert"
+        val body = remoteMessage.notification?.body ?: "New update available."
+
+        showDeepLinkNotification(title, body, destination, region, meterNumber)
+    }
+
+    private fun showDeepLinkNotification(
+        title: String, 
+        body: String, 
+        destination: String, 
+        region: String, 
+        meterNumber: String
+    ) {
+        val intent = Intent(this, MainActivity::class.java).apply {
+            flags = Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP
+            putExtra("NAV_DESTINATION", destination)
+            putExtra("OUTAGE_REGION", region)
+            putExtra("METER_NUMBER", meterNumber)
+        }
+
+        val pendingIntent = PendingIntent.getActivity(
+            this, System.currentTimeMillis().toInt(),
+            intent, PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
+        )
+
+        // Build and display notification using your NotificationChannelManager...
+    }
+}
