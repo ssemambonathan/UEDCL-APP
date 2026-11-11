@@ -1,0 +1,70 @@
+package com.uedcl.power.presentation.settings
+
+import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import com.uedcl.power.utils.FcmTopicManager
+
+@Composable
+fun RegionalAlertsToggleCard(
+    regionName: String = "Kampala Ntinda"
+) {
+    var isSubscribed by remember { mutableStateOf(true) }
+    var isLoading by remember { mutableStateOf(false) }
+
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(16.dp),
+        shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
+    ) {
+        Row(
+            modifier = Modifier
+                .padding(16.dp)
+                .fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = "Outage Alerts: $regionName",
+                    fontSize = 15.sp,
+                    style = MaterialTheme.typography.titleMedium
+                )
+                Text(
+                    text = "Receive instant push alerts for load shedding and grid maintenance in this area.",
+                    fontSize = 12.sp,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+
+            if (isLoading) {
+                CircularProgressIndicator(modifier = Modifier.size(24.dp))
+            } else {
+                Switch(
+                    checked = isSubscribed,
+                    onCheckedChange = { newState ->
+                        isLoading = true
+                        if (newState) {
+                            FcmTopicManager.subscribeToRegion(regionName) { success ->
+                                isLoading = false
+                                if (success) isSubscribed = true
+                            }
+                        } else {
+                            FcmTopicManager.unsubscribeFromRegion(regionName) { success ->
+                                isLoading = false
+                                if (success) isSubscribed = false
+                            }
+                        }
+                    }
+                )
+            }
+        }
+    }
+}
