@@ -1,0 +1,30 @@
+package com.uedcl.power.data.network
+
+import com.uedcl.power.utils.SecureStorageManager
+import okhttp3.Interceptor
+import okhttp3.Response
+import javax.inject.Inject
+
+class AuthInterceptor @Inject constructor(
+    private val secureStorage: SecureStorageManager
+) : Interceptor {
+
+    override fun intercept(chain: Interceptor.Chain): Response {
+        val originalRequest = chain.request()
+
+        // Retrieve the secure JWT token from EncryptedSharedPreferences
+        val token = secureStorage.getEncryptedToken("JWT_BEARER_TOKEN")
+
+        // If a token exists, attach it as a Bearer token header
+        val authenticatedRequest = if (!token.isNullOrBlank()) {
+            originalRequest.newBuilder()
+                .header("Authorization", "Bearer $token")
+                .header("Accept", "application/json")
+                .build()
+        } else {
+            originalRequest
+        }
+
+        return chain.proceed(authenticatedRequest)
+    }
+}
