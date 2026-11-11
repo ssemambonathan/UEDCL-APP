@@ -1,14 +1,19 @@
 @Composable
 fun AppRoot(
     activity: FragmentActivity, 
-    repo: IUedclRepository, 
-    startDestination: Destination = Destination.Home
+    repo: IUedclRepository,
+    selectedRegionFlow: StateFlow<String?>
 ) {
-    val nav = remember { NavCoordinator().apply { current = startDestination } }
-    val homeVm = remember { HomeViewModel(repo) }
-    val yakaVm = remember { YakaViewModel(repo) }
-    val supportVm = remember { SupportViewModel(repo) }
+    val nav = remember { NavCoordinator() }
+    val selectedRegion by selectedRegionFlow.collectAsState()
     val outagesFlow = remember { repo.getOutages().stateIn(CoroutineScope(Dispatchers.IO), SharingStarted.Eagerly, emptyList()) }
+
+    // If an outage region parameter is received via push notification, auto-navigate to the Map screen
+    LaunchedEffect(selectedRegion) {
+        if (!selectedRegion.isNullOrEmpty()) {
+            nav.current = Destination.Map
+        }
+    }
 
     Scaffold(
         bottomBar = {
@@ -33,11 +38,14 @@ fun AppRoot(
     ) { padding ->
         Box(modifier = Modifier.fillMaxSize().padding(padding)) {
             when (nav.current) {
-                Destination.Home -> HomeScreen(homeVm, nav)
-                Destination.BuyYaka -> BuyYakaScreen(activity, yakaVm) { nav.current = Destination.Home }
+                Destination.Home -> HomeScreen(remember { HomeViewModel(repo) }, nav)
+                Destination.BuyYaka -> BuyYakaScreen(activity, remember { YakaViewModel(repo) }) { nav.current = Destination.Home }
                 Destination.Usage -> UsageScreen()
-                Destination.Map -> OutageMapScreen(outagesFlow.collectAsState().value)
-                Destination.Support -> SupportScreen(supportVm)
+                Destination.Map -> OutageMapScreen(
+                    outages = outagesFlow.collectAsState().value,
+                    highlightedRegion = selectedRegion // Pass parameter into Composable screen
+                )
+                Destination.Support -> SupportScreen(remember { SupportViewModel(repo) })
             }
         }
     }
