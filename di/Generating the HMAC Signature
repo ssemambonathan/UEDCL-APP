@@ -1,0 +1,50 @@
+const crypto = require('crypto');
+const admin = require('firebase-admin');
+
+// Shared secret key stored securely in environment variables
+const SECRET_KEY = process.env.FCM_HMAC_SECRET || 'uedcl_secure_shared_secret_key_2026';
+
+function generateHmacChecksum(destination, region, meterNumber, timestamp) {
+  // Construct a canonical string of the payload data
+  const payloadString = `${destination}:${region}:${meterNumber}:${timestamp}`;
+  
+  // Generate HMAC SHA-256 hex digest
+  return crypto
+    .createHmac('sha256', SECRET_KEY)
+    .update(payloadString)
+    .digest('hex');
+}
+
+async function sendSignedDeepLinkNotification(fcmToken, destination, region, meterNumber) {
+  const timestamp = Date.now().toString();
+  const secureHash = generateHmacChecksum(destination, region, meterNumber, timestamp);
+
+  const message = {
+    token: fcmToken,
+    notification: {
+      title: '⚡ UEDCL Grid Alert',
+      body: `Tap to view active status for ${region}.`
+    },
+    data: {
+      nav_destination: destination,
+      region: region,
+      meter_number: meterNumber,
+      timestamp: timestamp,
+      secure_hash: secureHash // Attach cryptographic signature
+    },
+    android: {
+      priority: 'high',
+      notification: {
+        channelId: 'uedcl_critical_outages',
+        sound: 'default'
+      }
+    }
+  };
+
+  try {
+    const response = await admin.messaging().send(message);
+    console.log('Successfully sent signed FCM payload:', response);
+  } catch (error) {
+    console.error('Failed to send signed FCM payload:', error);
+  }
+}
