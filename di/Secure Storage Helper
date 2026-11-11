@@ -1,0 +1,34 @@
+package com.uedcl.power.utils
+
+import android.content.Context
+import androidx.security.crypto.EncryptedSharedPreferences
+import androidx.security.crypto.MasterKey
+
+class SecureStorageManager(context: Context) {
+
+    // Generate or retrieve the Master Key from Android Keystore
+    private val masterKey = MasterKey.Builder(context)
+        .setKeyScheme(MasterKey.KeyScheme.AES256_GCM)
+        .build()
+
+    // Initialize EncryptedSharedPreferences
+    private val encryptedPrefs = EncryptedSharedPreferences.create(
+        context,
+        "uedcl_secure_prefs_file",
+        masterKey,
+        EncryptedSharedPreferences.PrefKeyEncryptionScheme.AES256_SIV,
+        EncryptedSharedPreferences.PrefValueEncryptionScheme.AES256_GCM
+    )
+
+    fun saveEncryptedToken(key: String, value: String) {
+        encryptedPrefs.edit().putString(key, value).apply()
+    }
+
+    fun getEncryptedToken(key: String): String? {
+        return encryptedPrefs.getString(key, null)
+    }
+
+    fun clearSecureData() {
+        encryptedPrefs.edit().clear().apply()
+    }
+}
