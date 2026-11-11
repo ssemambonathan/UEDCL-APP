@@ -1,0 +1,15 @@
+package com.uedcl.power
+
+import android.app.Application
+import com.uedcl.power.utils.NotificationChannelManager
+import dagger.hilt.android.HiltAndroidApp
+
+@HiltAndroidApp
+class UedclApp : Application() {
+    override fun onCreate() {
+        super.onCreate()
+        
+        // Register system channels on startup
+        NotificationChannelManager.createAllNotificationChannels(this)
+    }
+}
