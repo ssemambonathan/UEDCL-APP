@@ -1,0 +1,49 @@
+package com.uedcl.power.utils
+
+import android.app.NotificationManager
+import android.app.PendingIntent
+import android.content.Context
+import android.content.Intent
+import androidx.core.app.NotificationCompat
+import com.uedcl.power.MainActivity
+import com.uedcl.power.R
+
+fun showHighPriorityOutageNotification(
+    context: Context,
+    title: String,
+    message: String,
+    outageRegion: String
+) {
+    val notificationManager =
+        context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+
+    // Deep link intent opening the Outage Map screen directly
+    val intent = Intent(context, MainActivity::class.java).apply {
+        flags = Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP
+        putExtra("NAV_DESTINATION", "OUTAGE_MAP")
+        putExtra("OUTAGE_REGION", outageRegion)
+    }
+
+    val pendingIntent = PendingIntent.getActivity(
+        context,
+        System.currentTimeMillis().toInt(),
+        intent,
+        PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
+    )
+
+    val notification = NotificationCompat.Builder(context, NotificationChannelManager.CHANNEL_CRITICAL_OUTAGES)
+        .setSmallIcon(android.R.drawable.stat_sys_warning) // High-contrast notification icon
+        .setContentTitle(title)
+        .setContentText(message)
+        .setStyle(NotificationCompat.BigTextStyle().bigText(message)) // Expandable full message
+        .setPriority(NotificationCompat.PRIORITY_HIGH) // For Android 7.1 (API 25) and lower
+        .setCategory(NotificationCompat.CATEGORY_ALARM)
+        .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
+        .setColor(android.graphics.Color.RED)
+        .setAutoCancel(true)
+        .setContentIntent(pendingIntent)
+        .setDefaults(NotificationCompat.DEFAULT_ALL)
+        .build()
+
+    notificationManager.notify(System.currentTimeMillis().toInt(), notification)
+}
