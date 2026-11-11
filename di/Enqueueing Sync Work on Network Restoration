@@ -1,0 +1,52 @@
+package com.uedcl.power.repository
+
+import android.content.Context
+import androidx.work.*
+import com.uedcl.power.data.local.dao.FaultReportDao
+import com.uedcl.power.data.local.entity.FaultReportEntity
+import com.uedcl.power.worker.FaultSyncWorker
+import java.util.concurrent.TimeUnit
+
+class FaultRepository(
+    private val context: Context,
+    private val faultDao: FaultReportDao
+) {
+
+    suspend fun reportFault(
+        meterNumber: String,
+        faultType: String,
+        description: String,
+        latitude: Double?,
+        longitude: Double?
+    ) {
+        // 1. Always save to Room database first (Offline-First principle)
+        val entity = FaultReportEntity(
+            meterNumber = meterNumber,
+            faultType = faultType,
+            description = description,
+            latitude = latitude,
+            longitude = longitude
+        )
+        faultDao.insertFault(entity)
+
+        // 2. Trigger WorkManager sync job
+        scheduleFaultSync(context)
+    }
+
+    private fun scheduleFaultSync(context: Context) {
+        val constraints = Constraints.Builder()
+            .setRequiredNetworkType(NetworkType.CONNECTED)
+            .build()
+
+        val syncWorkRequest = OneTimeWorkRequestBuilder<FaultSyncWorker>()
+            .setConstraints(constraints)
+            .setBackoffCriteria(BackoffPolicy.EXPONENTIAL, 15, TimeUnit.SECONDS)
+            .build()
+
+        WorkManager.getInstance(context).enqueueUniqueWork(
+            "fault_sync_queue_work",
+            ExistingWorkPolicy.KEEP,
+            syncWorkRequest
+        )
+    }
+}
