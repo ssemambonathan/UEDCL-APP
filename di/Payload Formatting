@@ -1,0 +1,53 @@
+const admin = require('firebase-admin');
+
+/**
+ * Sends a targeted FCM notification with secure deep link data parameters.
+ * @param {string} fcmToken - The target device's FCM registration token
+ * @param {string} destinationScreen - Target screen identifier (e.g., 'OUTAGE_MAP', 'BUY_YAKA')
+ * @param {Object} parameters - Additional routing or filter parameters
+ */
+async function sendSecureDeepLinkNotification(fcmToken, destinationScreen, parameters = {}) {
+  const message = {
+    token: fcmToken,
+    // Optional: Visual notification banner shown to the user
+    notification: {
+      title: '⚡ Uedcl Grid Alert',
+      body: `Tap to view details for ${parameters.region || 'your area'}.`
+    },
+    // Data payload carries the deep link parameters securely
+    data: {
+      nav_destination: destinationScreen,
+      region: parameters.region || '',
+      meter_number: parameters.meterNumber || '',
+      secure_token_hash: parameters.secureHash || '', // Optional cryptographic verification checksum
+      click_action: 'FLUTTER_NOTIFICATION_CLICK' // Standard handling hook or custom string
+    },
+    android: {
+      priority: 'high',
+      notification: {
+        channelId: 'uedcl_critical_outages',
+        sound: 'default'
+      }
+    }
+  };
+
+  try {
+    const response = await admin.messaging().send(message);
+    console.log('Successfully sent deep-link notification:', response);
+    return { success: true, messageId: response };
+  } catch (error) {
+    console.error('Error sending deep-link notification:', error);
+    return { success: false, error: error.message };
+  }
+}
+
+// Example invocation for a regional outage alert
+sendSecureDeepLinkNotification(
+  'USER_FCM_REGISTRATION_TOKEN_HERE',
+  'OUTAGE_MAP',
+  {
+    region: 'Kampala Ntinda',
+    meterNumber: '0421-555-889',
+    secureHash: 'a8f5c9e2b3d1...' // Optional backend-signed verification hash
+  }
+);
