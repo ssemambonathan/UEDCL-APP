@@ -1,0 +1,5 @@
+override fun onNewToken(newToken: String) {
+    super.onNewToken(newToken)
+    // Automatically queue background retry sync
+    scheduleFcmTokenSync(applicationContext, newToken)
+}
