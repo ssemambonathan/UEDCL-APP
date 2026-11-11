@@ -1,6 +1,7 @@
-package com.uedcl.power.worker
+ package com.uedcl.power.worker
 
 import android.content.Context
+import androidx.hilt.work.HiltWorker
 import androidx.work.CoroutineWorker
 import androidx.work.WorkerParameters
 import com.uedcl.power.data.local.UedclDatabase
@@ -10,26 +11,23 @@ import dagger.assisted.AssistedInject
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
+@HiltWorker
 class FaultSyncWorker @AssistedInject constructor(
     @Assisted appContext: Context,
     @Assisted workerParams: WorkerParameters,
     private val apiService: UedclApiService,
     private val database: UedclDatabase
-): CoroutineWorker(appContext, workerParams) {
+) : CoroutineWorker(appContext, workerParams) {
 
     override suspend fun doWork(): Result = withContext(Dispatchers.IO) {
         val dao = database.faultReportDao()
         val pendingFaults = dao.getAllPendingFaults()
 
-        if (pendingFaults.isEmpty()) {
-            return@withContext Result.success()
-        }
+        if (pendingFaults.isEmpty()) return@withContext Result.success()
 
         var allSynced = true
-
         for (fault in pendingFaults) {
             try {
-                // Submit to backend via Retrofit
                 val response = apiService.submitFaultReport(
                     meterNumber = fault.meterNumber,
                     faultType = fault.faultType,
@@ -37,9 +35,7 @@ class FaultSyncWorker @AssistedInject constructor(
                     latitude = fault.latitude,
                     longitude = fault.longitude
                 )
-
                 if (response.isSuccessful) {
-                    // Remove successfully synced item from Room queue
                     dao.deleteFault(fault)
                 } else {
                     allSynced = false
@@ -50,11 +46,6 @@ class FaultSyncWorker @AssistedInject constructor(
                 dao.incrementRetryCount(fault.id)
             }
         }
-
-        return@withContext if (allSynced) {
-            Result.success()
-        } else {
-            Result.retry()
-        }
+        return@withContext if (allSynced) Result.success() else Result.retry()
     }
 }
