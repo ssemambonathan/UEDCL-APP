@@ -1,0 +1,68 @@
+package com.uedcl.power.utils
+
+import android.app.NotificationChannel
+import android.app.NotificationManager
+import android.content.Context
+import android.media.AudioAttributes
+import android.net.Uri
+import android.os.Build
+import androidx.core.app.NotificationCompat
+
+object NotificationChannelManager {
+
+    // Channel IDs
+    const val CHANNEL_CRITICAL_OUTAGES = "uedcl_critical_outages"
+    const val CHANNEL_LOW_UNITS = "uedcl_low_units"
+    const val CHANNEL_GENERAL_UPDATES = "uedcl_general_updates"
+
+    /**
+     * Creates all notification channels for the app.
+     * Safe to call multiple times (e.g., on App Startup or MainActivity creation).
+     */
+    fun createAllNotificationChannels(context: Context) {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) return
+
+        val notificationManager =
+            context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+
+        // --- Channel 1: High-Priority Emergency / Power Outages ---
+        val outageChannel = NotificationChannel(
+            CHANNEL_CRITICAL_OUTAGES,
+            "Critical Outage & Grid Alerts",
+            NotificationManager.IMPORTANCE_HIGH // Pops up as a heads-up banner & plays sound
+        ).apply {
+            description = "High-priority alerts for unscheduled load shedding, line faults, and grid repairs."
+            enableLights(true)
+            lightColor = android.graphics.Color.RED
+            enableVibration(true)
+            vibrationPattern = longArrayOf(0, 500, 200, 500) // Distinct urgent vibration pattern
+            setBypassDnd(true) // Allows critical alerts to break through Do Not Disturb (if allowed by OS)
+            lockscreenVisibility = NotificationCompat.VISIBILITY_PUBLIC
+        }
+
+        // --- Channel 2: Medium-Priority Low Balance Alerts ---
+        val lowUnitsChannel = NotificationChannel(
+            CHANNEL_LOW_UNITS,
+            "Low Yaka Balance Warnings",
+            NotificationManager.IMPORTANCE_DEFAULT
+        ).apply {
+            description = "Notifications when your Yaka electricity units fall below threshold."
+            enableVibration(true)
+            lockscreenVisibility = NotificationCompat.VISIBILITY_PRIVATE
+        }
+
+        // --- Channel 3: Low-Priority Marketing / Statements ---
+        val generalChannel = NotificationChannel(
+            CHANNEL_GENERAL_UPDATES,
+            "Billing & General Announcements",
+            NotificationManager.IMPORTANCE_LOW // Silent, shows only in shade
+        ).apply {
+            description = "Monthly statements, tariff adjustments, and general announcements."
+        }
+
+        // Register all channels with the system
+        notificationManager.createNotificationChannels(
+            listOf(outageChannel, lowUnitsChannel, generalChannel)
+        )
+    }
+}
