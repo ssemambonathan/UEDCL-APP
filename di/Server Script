@@ -1,0 +1,70 @@
+const express = require('express');
+const admin = require('firebase-admin');
+const serviceAccount = require('./serviceAccountKey.json');
+
+// Initialize Firebase Admin SDK
+admin.initializeApp({
+  credential: admin.credential.cert(serviceAccount)
+});
+
+const app = express();
+app.use(express.json());
+
+/**
+ * Endpoint to trigger a low electricity unit notification
+ * Request Body Example:
+ * {
+ *   "fcmToken": "USER_DEVICE_FCM_REGISTRATION_TOKEN",
+ *   "meterNumber": "0421-555-889",
+ *   "kwhRemaining": 3.4
+ * }
+ */
+app.post('/send-low-unit-alert', async (req, res) => {
+  const { fcmToken, meterNumber, kwhRemaining } = req.body;
+
+  if (!fcmToken || !meterNumber || kwhRemaining === undefined) {
+    return res.status(400.json({ error: 'Missing required parameters: fcmToken, meterNumber, or kwhRemaining' }));
+  }
+
+  // Build the FCM payload matching your Android Kotlin client implementation
+  const message = {
+    token: fcmToken,
+    notification: {
+      title: '⚡ Critical Yaka Balance Alert',
+      body: `Your meter (${meterNumber}) is running low! Only ${kwhRemaining} kWh remaining.`
+    },
+    data: {
+      kwh_remaining: String(kwhRemaining),
+      meter_number: meterNumber,
+      alert_type: 'LOW_UNITS'
+    },
+    android: {
+      priority: 'high',
+      notification: {
+        sound: 'default',
+        channelId: 'uedcl_alerts_channel'
+      }
+    }
+  };
+
+  try {
+    // Send the notification via Firebase Cloud Messaging
+    const response = await admin.messaging().send(message);
+    console.log('Successfully sent low unit push notification:', response);
+    return res.status(200).json({ 
+      success: true, 
+      messageId: response 
+    });
+  } catch (error) {
+    console.error('Error sending FCM push notification:', error);
+    return res.status(500).json({ 
+      success: false, 
+      error: error.message 
+    });
+  }
+});
+
+const PORT = process.env.PORT || 3000;
+app.listen(PORT, () => {
+  console.log(`UEDCL Notification Server running on port ${PORT}`);
+});
