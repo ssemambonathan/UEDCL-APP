@@ -1,0 +1,27 @@
+import android.content.Context
+import androidx.work.*
+import java.util.concurrent.TimeUnit
+
+fun scheduleFcmTokenSync(context: Context, fcmToken: String) {
+    // 1. Define network constraints (only run when connected to the internet)
+    val constraints = Constraints.Builder()
+        .setRequiredNetworkType(NetworkType.CONNECTED)
+        .build()
+
+    // 2. Configure exponential backoff policy for robust retries
+    val workRequest = OneTimeWorkRequestBuilder<FcmTokenSyncWorker>()
+        .setConstraints(constraints)
+        .setBackoffCriteria(
+            BackoffPolicy.EXPONENTIAL,
+            10, TimeUnit.SECONDS // Initial delay before first retry
+        )
+        .setInputData(workDataOf("KEY_FCM_TOKEN" to fcmToken))
+        .build()
+
+    // 3. Enqueue uniquely so duplicate token sync requests don't pile up
+    WorkManager.getInstance(context).enqueueUniqueWork(
+        "uedcl_fcm_token_sync_job",
+        ExistingWorkPolicy.REPLACE,
+        workRequest
+    )
+}
