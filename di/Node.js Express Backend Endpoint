@@ -1,0 +1,35 @@
+const express = require('express');
+const { Pool } = require('pg');
+const router = express.Router();
+
+const db = new Pool({ /* DB Config */ });
+
+/**
+ * POST /api/user/update-fcm-token
+ * Body: { userId: "USER_123", fcmToken: "fcm_token_string..." }
+ */
+router.post('/user/update-fcm-token', async (req, res) => {
+  const { userId, fcmToken } = req.body;
+
+  if (!userId || !fcmToken) {
+    return res.status(400).json({ error: 'Missing userId or fcmToken parameters.' });
+  }
+
+  try {
+    const query = `
+      UPDATE users 
+      SET fcm_token = $1, 
+          fcm_token_updated_at = NOW() 
+      WHERE id = $2;
+    `;
+    await db.query(query, [fcmToken, userId]);
+
+    console.log(`Updated FCM token for User ID: ${userId}`);
+    return res.status(200).json({ success: true });
+  } catch (error) {
+    console.error('Error updating FCM token:', error);
+    return res.status(500).json({ error: 'Internal server database error.' });
+  }
+});
+
+module.exports = router;
