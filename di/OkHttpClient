@@ -1,0 +1,49 @@
+package com.uedcl.power.di
+
+import dagger.Module
+import dagger.Provides
+import dagger.hilt.InstallIn
+import dagger.hilt.components.SingletonComponent
+import okhttp3.CertificatePinner
+import okhttp3.OkHttpClient
+import retrofit2.Retrofit
+import retrofit2.converter.gson.GsonConverterFactory
+import java.util.concurrent.TimeUnit
+import javax.inject.Singleton
+
+@Module
+@InstallIn(SingletonComponent::class)
+object NetworkModule {
+
+    private const val HOSTNAME = "api.uedcl.co.ug"
+
+    @Provides
+    @Singleton
+    fun provideCertificatePinner(): CertificatePinner {
+        // In production, maintain backup pins (backup CA) to prevent app bricking during certificate rotation
+        return CertificatePinner.Builder()
+            .add(HOSTNAME, "sha256/PRIMARY_CERTIFICATE_HASH_HERE=")
+            .add(HOSTNAME, "sha256/BACKUP_CERTIFICATE_HASH_HERE=")
+            .build()
+    }
+
+    @Provides
+    @Singleton
+    fun provideOkHttpClient(certificatePinner: CertificatePinner): OkHttpClient {
+        return OkHttpClient.Builder()
+            .certificatePinner(certificatePinner)
+            .connectTimeout(30, TimeUnit.SECONDS)
+            .readTimeout(30, TimeUnit.SECONDS)
+            .build()
+    }
+
+    @Provides
+    @Singleton
+    fun provideRetrofit(okHttpClient: OkHttpClient): Retrofit {
+        return Retrofit.Builder()
+            .baseUrl("https://$HOSTNAME/")
+            .client(okHttpClient)
+            .addConverterFactory(GsonConverterFactory.create())
+            .build()
+    }
+}
