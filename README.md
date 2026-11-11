@@ -1,7 +1,6 @@
 UEDCL Android App
 **Uganda Electricity Distribution Company Limited**
-Commercial-grade mobile platform — Kotlin + Jetpack Compose
-
+UEDCL Power is a modern Android electricity management application designed to simplify how Ugandans access and manage electricity services. Built with Kotlin and Jetpack Compose, it enables customers to buy Yaka, make secure payments, monitor electricity consumption, track meter balances, report power faults, receive outage notifications, and access customer support — all from one intuitive platform.
 ---
 
 ## Quick Start
