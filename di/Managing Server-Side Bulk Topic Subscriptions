@@ -1,0 +1,16 @@
+/**
+ * Bulk subscribes multiple device tokens to a region topic from the server.
+ */
+async function subscribeTokensToRegion(tokensArray, regionName) {
+  const topicName = "outage_" + regionName.toLowerCase().replace(/ /g, "_");
+
+  try {
+    const response = await admin.messaging().subscribeToTopic(tokensArray, topicName);
+    console.log(`Successfully subscribed ${response.successCount} tokens to ${topicName}`);
+    if (response.failureCount > 0) {
+      console.warn(`Failed to subscribe ${response.failureCount} tokens.`);
+    }
+  } catch (error) {
+    console.error('Error subscribing tokens to topic:', error);
+  }
+}
