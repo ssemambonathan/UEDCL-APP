@@ -1,0 +1,12 @@
+import com.google.firebase.messaging.FirebaseMessaging
+
+fun syncCurrentFcmToken(userId: String, repository: IUedclRepository) {
+    FirebaseMessaging.getInstance().token.addOnCompleteListener { task ->
+        if (task.isSuccessful && task.result != null) {
+            val token = task.result
+            CoroutineScope(Dispatchers.IO).launch {
+                repository.updateFcmToken(userId, token)
+            }
+        }
+    }
+}
