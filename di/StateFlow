@@ -1,0 +1,55 @@
+package com.uedcl.power.presentation.home
+
+import com.uedcl.power.data.Resource
+import com.uedcl.power.domain.model.PowerStatusEntityModel
+import com.uedcl.power.domain.repository.IUedclRepository
+import app.cash.turbine.test
+import com.google.common.truth.Truth.assertThat
+import io.mockk.every
+import io.mockk.mockk
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.test.*
+import org.junit.After
+import org.junit.Before
+import org.junit.Test
+
+@OptIn(ExperimentalCoroutinesApi::class)
+class HomeViewModelTest {
+
+    private val repository: IUedclRepository = mockk(relaxed = true)
+    private lateinit var viewModel: HomeViewModel
+    private val testDispatcher = StandardTestDispatcher()
+
+    @Before
+    fun setUp() {
+        Dispatchers.setMain(testDispatcher)
+    }
+
+    @After
+    fun tearDown() {
+        Dispatchers.resetMain()
+    }
+
+    @Test
+    fun `powerStatus emits success state when repository returns data`() = runTest {
+        // Given
+        val mockStatus = PowerStatusEntityModel(true, 50.0, "Domestic", 4.0)
+        every { repository.getPowerStatus() } returns flowOf(Resource.Success(mockStatus))
+
+        // When
+        viewModel = HomeViewModel(repository)
+
+        // Then
+        viewModel.powerStatus.test {
+            // Skip initial loading state if emitted
+            val emission = awaitItem()
+            if (emission is Resource.Loading) {
+                assertThat(awaitItem()).isInstanceOf(Resource.Success::class.java)
+            } else {
+                assertThat(emission).isInstanceOf(Resource.Success::class.java)
+            }
+        }
+    }
+}
