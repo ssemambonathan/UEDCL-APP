@@ -1,0 +1,140 @@
+package com.uedcl.power.presentation.login
+
+import android.app.Activity
+import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import com.google.firebase.FirebaseException
+import com.google.firebase.auth.PhoneAuthCredential
+import com.google.firebase.auth.PhoneAuthOptions
+import com.google.firebase.auth.PhoneAuthProvider
+import com.google.firebase.auth.ktx.auth
+import com.google.firebase.ktx.Firebase
+import java.util.concurrent.TimeUnit
+
+@Composable
+fun PhoneAuthLoginScreen(
+    activity: Activity,
+    onLoginSuccess: () -> Unit
+) {
+    var phoneNumber by remember { mutableStateOf("") }
+    var verificationCode by remember { mutableStateOf("") }
+    var verificationId by remember { mutableStateOf<String?>(null) }
+    var codeSent by remember { mutableStateOf(false) }
+    var errorMessage by remember { mutableStateOf<String?>(null) }
+    var isLoading by remember { mutableStateOf(false) }
+
+    val auth = Firebase.auth
+
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(24.dp),
+        verticalArrangement = Arrangement.Center
+    ) {
+        Text("UEDCL Power Login", fontSize = 24.sp, fontWeight = FontWeight.Bold)
+        Spacer(modifier = Modifier.height(8.dp))
+        Text("Enter your Ugandan phone number to receive an SMS verification code.", fontSize = 14.sp)
+
+        Spacer(modifier = Modifier.height(24.dp))
+
+        if (!codeSent) {
+            // Phone Number Input with +256 Prefix Handling
+            OutlinedTextField(
+                value = phoneNumber,
+                onValueChange = { phoneNumber = it },
+                label = { Text("Phone Number (e.g., 772123456)") },
+                prefix = { Text("+256 ") },
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(12.dp)
+            )
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            Button(
+                onClick = {
+                    if (phoneNumber.isNotBlank()) {
+                        isLoading = true
+                        val formattedNumber = "+256${phoneNumber.trim().removePrefix("0")}"
+                        
+                        val callbacks = object : PhoneAuthProvider.OnVerificationStateChangedCallbacks() {
+                            override fun onVerificationCompleted(credential: PhoneAuthCredential) {
+                                // Auto-retrieval or instant verification
+                                auth.signInWithCredential(credential).addOnCompleteListener { task ->
+                                    isLoading = false
+                                    if (task.isSuccessful) onLoginSuccess()
+                                    else errorMessage = task.exception?.message
+                                }
+                            }
+
+                            override fun onVerificationFailed(e: FirebaseException) {
+                                isLoading = false
+                                errorMessage = e.localizedMessage
+                            }
+
+                            override fun onCodeSent(id: String, token: PhoneAuthProvider.ForceResendingToken) {
+                                isLoading = false
+                                verificationId = id
+                                codeSent = true
+                            }
+                        }
+
+                        val options = PhoneAuthOptions.newBuilder(auth)
+                            .setPhoneNumber(formattedNumber)
+                            .setTimeout(60L, TimeUnit.SECONDS)
+                            .setActivity(activity)
+                            .setCallbacks(callbacks)
+                            .build()
+                        
+                        PhoneAuthProvider.verifyPhoneNumber(options)
+                    }
+                },
+                modifier = Modifier.fillMaxWidth().height(50.dp),
+                shape = RoundedCornerShape(12.dp)
+            ) {
+                if (isLoading) CircularProgressIndicator(color = Color.White)
+                else Text("Send OTP Code")
+            }
+        } else {
+            // OTP Code Input
+            OutlinedTextField(
+                value = verificationCode,
+                onValueChange = { verificationCode = it },
+                label = { Text("Enter 6-digit OTP Code") },
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(12.dp)
+            )
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            Button(
+                onClick = {
+                    if (verificationId != null && verificationCode.isNotBlank()) {
+                        isLoading = true
+                        val credential = PhoneAuthProvider.getCredential(verificationId!!, verificationCode)
+                        auth.signInWithCredential(credential).addOnCompleteListener { task ->
+                            isLoading = false
+                            if (task.isSuccessful) onLoginSuccess()
+                            else errorMessage = "Invalid verification code: ${task.exception?.message}"
+                        }
+                    }
+                },
+                modifier = Modifier.fillMaxWidth().height(50.dp),
+                shape = RoundedCornerShape(12.dp)
+            ) {
+                if (isLoading) CircularProgressIndicator(color = Color.White)
+                else Text("Verify & Login")
+            }
+        }
+
+        errorMessage?.let {
+            Spacer(modifier = Modifier.height(12.dp))
+            Text(it, color = MaterialTheme.colorScheme.error)
+        }
+    }
+}
