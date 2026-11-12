@@ -1,0 +1,44 @@
+name: UEDCL Power CI/CD Pipeline
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main, develop ]
+
+jobs:
+  test_and_build:
+    name: Run Tests and Build App Bundle
+    runs-on: ubuntu-latest
+
+    steps:
+      # 1. Checkout repository source code
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      # 2. Set up JDK 17 (matching your target compatibility)
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+          cache: 'gradle'
+
+      # 3. Grant execution permissions to Gradle wrapper
+      - name: Grant execute permission for gradlew
+        run: chmod +x gradlew
+
+      # 4. Run local unit tests (JUnit, MockK, Turbine, MockWebServer)
+      - name: Run Unit Tests
+        run: ./gradlew testDebugUnitTest
+
+      # 5. Build Release Android App Bundle (.aab)
+      - name: Build Release Bundle
+        run: ./gradlew bundleRelease
+
+      # 6. Upload App Bundle artifact for download/distribution
+      - name: Upload Release AAB Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: uedcl-power-release-bundle
+          path: app/build/outputs/bundle/release/app-release.aab
